@@ -65,6 +65,7 @@ module "topology" {
   source = "./topology"
 
   cidr_block          = var.machine_v4_cidrs[0]
+  cidr_block_v6       = var.machine_v6_cidrs[0]
   cluster_id          = var.cluster_id
   cluster_domain      = var.cluster_domain
   external_network    = var.openstack_external_network
@@ -78,6 +79,8 @@ module "topology" {
   octavia_support     = var.openstack_octavia_support
   machines_subnet_id  = var.openstack_machines_subnet_id
   machines_network_id = var.openstack_machines_network_id
+  use_ipv4            = var.use_ipv4
+  use_ipv6            = var.use_ipv6
 }
 
 data "openstack_images_image_v2" "base_image" {

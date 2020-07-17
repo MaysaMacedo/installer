@@ -28,6 +28,20 @@ resource "openstack_networking_secgroup_rule_v2" "worker_ingress_icmp" {
   depends_on = [openstack_networking_secgroup_rule_v2.master_ingress_vrrp]
 }
 
+resource "openstack_networking_secgroup_rule_v2" "worker_ingress_icmp_v6" {
+  count          = var.use_ipv6 ? 1 : 0
+  direction      = "ingress"
+  ethertype      = "IPv6"
+  protocol       = "icmp"
+  port_range_min = 0
+  port_range_max = 0
+  # FIXME(mandre) AWS only allows ICMP from cidr_block
+  remote_ip_prefix  = "::/0"
+  security_group_id = openstack_networking_secgroup_v2.worker.id
+
+  depends_on = [openstack_networking_secgroup_rule_v2.master_ingress_vrrp_v6]
+}
+
 resource "openstack_networking_secgroup_rule_v2" "worker_ingress_ssh" {
   direction      = "ingress"
   ethertype      = "IPv4"
@@ -39,6 +53,20 @@ resource "openstack_networking_secgroup_rule_v2" "worker_ingress_ssh" {
   security_group_id = openstack_networking_secgroup_v2.worker.id
 
   depends_on = [openstack_networking_secgroup_rule_v2.worker_ingress_icmp]
+}
+
+resource "openstack_networking_secgroup_rule_v2" "worker_ingress_ssh_v6" {
+  count             = var.use_ipv6 ? 1 : 0
+  direction      = "ingress"
+  ethertype      = "IPv6"
+  protocol       = "tcp"
+  port_range_min = 22
+  port_range_max = 22
+  # FIXME(mandre) AWS only allows SSH from cidr_block
+  remote_ip_prefix  = "::/0"
+  security_group_id = openstack_networking_secgroup_v2.worker.id
+
+  depends_on = [openstack_networking_secgroup_rule_v2.worker_ingress_icmp_v6]
 }
 
 resource "openstack_networking_secgroup_rule_v2" "worker_ingress_mdns_udp" {
@@ -53,6 +81,19 @@ resource "openstack_networking_secgroup_rule_v2" "worker_ingress_mdns_udp" {
   depends_on = [openstack_networking_secgroup_rule_v2.worker_ingress_ssh]
 }
 
+resource "openstack_networking_secgroup_rule_v2" "worker_ingress_mdns_udp_v6" {
+  count             = var.use_ipv6 ? 1 : 0
+  direction         = "ingress"
+  ethertype         = "IPv6"
+  protocol          = "udp"
+  port_range_min    = 5353
+  port_range_max    = 5353
+  remote_ip_prefix  = var.cidr_block_v6
+  security_group_id = openstack_networking_secgroup_v2.worker.id
+
+  depends_on = [openstack_networking_secgroup_rule_v2.worker_ingress_ssh_v6]
+}
+
 resource "openstack_networking_secgroup_rule_v2" "worker_ingress_http" {
   direction         = "ingress"
   ethertype         = "IPv4"
@@ -63,6 +104,19 @@ resource "openstack_networking_secgroup_rule_v2" "worker_ingress_http" {
   security_group_id = openstack_networking_secgroup_v2.worker.id
 
   depends_on = [openstack_networking_secgroup_rule_v2.worker_ingress_mdns_udp]
+}
+
+resource "openstack_networking_secgroup_rule_v2" "worker_ingress_http_v6" {
+  count             = var.use_ipv6 ? 1 : 0
+  direction         = "ingress"
+  ethertype         = "IPv6"
+  protocol          = "tcp"
+  port_range_min    = 80
+  port_range_max    = 80
+  remote_ip_prefix  = "::/0"
+  security_group_id = openstack_networking_secgroup_v2.worker.id
+
+  depends_on = [openstack_networking_secgroup_rule_v2.worker_ingress_mdns_udp_v6]
 }
 
 resource "openstack_networking_secgroup_rule_v2" "worker_ingress_https" {
@@ -77,6 +131,19 @@ resource "openstack_networking_secgroup_rule_v2" "worker_ingress_https" {
   depends_on = [openstack_networking_secgroup_rule_v2.worker_ingress_http]
 }
 
+resource "openstack_networking_secgroup_rule_v2" "worker_ingress_https_v6" {
+  count             = var.use_ipv6 ? 1 : 0
+  direction         = "ingress"
+  ethertype         = "IPv6"
+  protocol          = "tcp"
+  port_range_min    = 443
+  port_range_max    = 443
+  remote_ip_prefix  = "::/0"
+  security_group_id = openstack_networking_secgroup_v2.worker.id
+
+  depends_on = [openstack_networking_secgroup_rule_v2.worker_ingress_http_v6]
+}
+
 resource "openstack_networking_secgroup_rule_v2" "worker_ingress_router" {
   direction         = "ingress"
   ethertype         = "IPv4"
@@ -87,6 +154,19 @@ resource "openstack_networking_secgroup_rule_v2" "worker_ingress_router" {
   security_group_id = openstack_networking_secgroup_v2.worker.id
 
   depends_on = [openstack_networking_secgroup_rule_v2.worker_ingress_https]
+}
+
+resource "openstack_networking_secgroup_rule_v2" "worker_ingress_router_v6" {
+  count             = var.use_ipv6 ? 1 : 0
+  direction         = "ingress"
+  ethertype         = "IPv6"
+  protocol          = "tcp"
+  port_range_min    = 1936
+  port_range_max    = 1936
+  remote_ip_prefix  = var.cidr_block_v6
+  security_group_id = openstack_networking_secgroup_v2.worker.id
+
+  depends_on = [openstack_networking_secgroup_rule_v2.worker_ingress_https_v6]
 }
 
 resource "openstack_networking_secgroup_rule_v2" "worker_ingress_vxlan" {
@@ -101,6 +181,19 @@ resource "openstack_networking_secgroup_rule_v2" "worker_ingress_vxlan" {
   depends_on = [openstack_networking_secgroup_rule_v2.worker_ingress_router]
 }
 
+resource "openstack_networking_secgroup_rule_v2" "worker_ingress_vxlan_v6" {
+  count             = var.use_ipv6 ? 1 : 0
+  direction         = "ingress"
+  ethertype         = "IPv6"
+  protocol          = "udp"
+  port_range_min    = 4789
+  port_range_max    = 4789
+  remote_ip_prefix  = var.cidr_block_v6
+  security_group_id = openstack_networking_secgroup_v2.worker.id
+
+  depends_on = [openstack_networking_secgroup_rule_v2.worker_ingress_router_v6]
+}
+
 resource "openstack_networking_secgroup_rule_v2" "worker_ingress_geneve" {
   direction         = "ingress"
   ethertype         = "IPv4"
@@ -111,6 +204,19 @@ resource "openstack_networking_secgroup_rule_v2" "worker_ingress_geneve" {
   security_group_id = openstack_networking_secgroup_v2.worker.id
 
   depends_on = [openstack_networking_secgroup_rule_v2.worker_ingress_vxlan]
+}
+
+resource "openstack_networking_secgroup_rule_v2" "worker_ingress_geneve_v6" {
+  count             = var.use_ipv6 ? 1 : 0
+  direction         = "ingress"
+  ethertype         = "IPv6"
+  protocol          = "udp"
+  port_range_min    = 6081
+  port_range_max    = 6081
+  remote_ip_prefix  = var.cidr_block_v6
+  security_group_id = openstack_networking_secgroup_v2.worker.id
+
+  depends_on = [openstack_networking_secgroup_rule_v2.worker_ingress_vxlan_v6]
 }
 
 resource "openstack_networking_secgroup_rule_v2" "worker_ingress_internal" {
@@ -125,6 +231,19 @@ resource "openstack_networking_secgroup_rule_v2" "worker_ingress_internal" {
   depends_on = [openstack_networking_secgroup_rule_v2.worker_ingress_geneve]
 }
 
+resource "openstack_networking_secgroup_rule_v2" "worker_ingress_internal_v6" {
+  count             = var.use_ipv6 ? 1 : 0
+  direction         = "ingress"
+  ethertype         = "IPv6"
+  protocol          = "tcp"
+  port_range_min    = 9000
+  port_range_max    = 9999
+  remote_ip_prefix  = var.cidr_block_v6
+  security_group_id = openstack_networking_secgroup_v2.worker.id
+
+  depends_on = [openstack_networking_secgroup_rule_v2.worker_ingress_geneve_v6]
+}
+
 resource "openstack_networking_secgroup_rule_v2" "worker_ingress_internal_udp" {
   direction         = "ingress"
   ethertype         = "IPv4"
@@ -135,6 +254,19 @@ resource "openstack_networking_secgroup_rule_v2" "worker_ingress_internal_udp" {
   security_group_id = openstack_networking_secgroup_v2.worker.id
 
   depends_on = [openstack_networking_secgroup_rule_v2.worker_ingress_internal]
+}
+
+resource "openstack_networking_secgroup_rule_v2" "worker_ingress_internal_udp_v6" {
+  count             = var.use_ipv6 ? 1 : 0
+  direction         = "ingress"
+  ethertype         = "IPv6"
+  protocol          = "udp"
+  port_range_min    = 9000
+  port_range_max    = 9999
+  remote_ip_prefix  = var.cidr_block_v6
+  security_group_id = openstack_networking_secgroup_v2.worker.id
+
+  depends_on = [openstack_networking_secgroup_rule_v2.worker_ingress_internal_v6]
 }
 
 resource "openstack_networking_secgroup_rule_v2" "worker_ingress_kubelet_insecure" {
@@ -149,9 +281,22 @@ resource "openstack_networking_secgroup_rule_v2" "worker_ingress_kubelet_insecur
   depends_on = [openstack_networking_secgroup_rule_v2.worker_ingress_internal_udp]
 }
 
+resource "openstack_networking_secgroup_rule_v2" "worker_ingress_kubelet_insecure_v6" {
+  count             = var.use_ipv6 ? 1 : 0
+  direction         = "ingress"
+  ethertype         = "IPv6"
+  protocol          = "tcp"
+  port_range_min    = 10250
+  port_range_max    = 10250
+  remote_ip_prefix  = var.cidr_block_v6
+  security_group_id = openstack_networking_secgroup_v2.worker.id
+
+  depends_on = [openstack_networking_secgroup_rule_v2.worker_ingress_internal_udp_v6]
+}
+
 resource "openstack_networking_secgroup_rule_v2" "worker_ingress_services_tcp" {
   direction         = "ingress"
-  ethertype         = "IPv4"
+  ethertype         = var.use_ipv6 ? "IPv6" : "IPv4"
   protocol          = "tcp"
   port_range_min    = 30000
   port_range_max    = 32767
@@ -159,6 +304,19 @@ resource "openstack_networking_secgroup_rule_v2" "worker_ingress_services_tcp" {
   security_group_id = openstack_networking_secgroup_v2.worker.id
 
   depends_on = [openstack_networking_secgroup_rule_v2.worker_ingress_kubelet_insecure]
+}
+
+resource "openstack_networking_secgroup_rule_v2" "worker_ingress_services_tcp_v6" {
+  count             = var.use_ipv6 ? 1 : 0
+  direction         = "ingress"
+  ethertype         = "IPv6"
+  protocol          = "tcp"
+  port_range_min    = 30000
+  port_range_max    = 32767
+  remote_ip_prefix  = var.cidr_block_v6
+  security_group_id = openstack_networking_secgroup_v2.worker.id
+
+  depends_on = [openstack_networking_secgroup_rule_v2.worker_ingress_kubelet_insecure_v6]
 }
 
 resource "openstack_networking_secgroup_rule_v2" "worker_ingress_services_udp" {
@@ -173,6 +331,19 @@ resource "openstack_networking_secgroup_rule_v2" "worker_ingress_services_udp" {
   depends_on = [openstack_networking_secgroup_rule_v2.worker_ingress_services_tcp]
 }
 
+resource "openstack_networking_secgroup_rule_v2" "worker_ingress_services_udp_v6" {
+  count             = var.use_ipv6 ? 1 : 0
+  direction         = "ingress"
+  ethertype         = "IPv6"
+  protocol          = "udp"
+  port_range_min    = 30000
+  port_range_max    = 32767
+  remote_ip_prefix  = var.cidr_block_v6
+  security_group_id = openstack_networking_secgroup_v2.worker.id
+
+  depends_on = [openstack_networking_secgroup_rule_v2.worker_ingress_services_tcp_v6]
+}
+
 resource "openstack_networking_secgroup_rule_v2" "worker_ingress_vrrp" {
   direction = "ingress"
   ethertype = "IPv4"
@@ -183,4 +354,17 @@ resource "openstack_networking_secgroup_rule_v2" "worker_ingress_vrrp" {
   security_group_id = openstack_networking_secgroup_v2.worker.id
 
   depends_on = [openstack_networking_secgroup_rule_v2.worker_ingress_services_udp]
+}
+
+resource "openstack_networking_secgroup_rule_v2" "worker_ingress_vrrp_v6" {
+  count     = var.use_ipv6 ? 1 : 0
+  direction = "ingress"
+  ethertype = "IPv6"
+  # Explicitly set the vrrp protocol number to prevent cases when the Neutron Plugin
+  # is disabled and it cannot identify a number by name.
+  protocol          = "112"
+  remote_ip_prefix  = var.cidr_block_v6
+  security_group_id = openstack_networking_secgroup_v2.worker.id
+
+  depends_on = [openstack_networking_secgroup_rule_v2.worker_ingress_services_udp_v6]
 }

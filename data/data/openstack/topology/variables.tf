@@ -2,6 +2,10 @@ variable "cidr_block" {
   type = string
 }
 
+variable "cidr_block_v6" {
+  type = string
+}
+
 variable "cluster_id" {
   type = string
 }
@@ -61,4 +65,14 @@ variable "machines_subnet_id" {
 variable "machines_network_id" {
   type    = string
   default = ""
+}
+
+variable "use_ipv4" {
+  type        = bool
+  description = "This value determines if this is cluster should use IPv4 networking."
+}
+
+variable "use_ipv6" {
+  type        = bool
+  description = "This value determines if this is cluster should use IPv6 networking."
 }

@@ -1,6 +1,8 @@
 locals {
   nodes_cidr_block = var.cidr_block
+  nodes_cidr_block_v6 = var.cidr_block_v6
   nodes_subnet_id  = var.machines_subnet_id != "" ? var.machines_subnet_id : openstack_networking_subnet_v2.nodes[0].id
+  nodes_subnet_id_v6  = var.use_ipv6 && var.machines_subnet_id == "" ? openstack_networking_subnet_v2.nodes_v6[0].id: var.machines_subnet_id
   nodes_network_id = var.machines_network_id != "" ? var.machines_network_id : openstack_networking_network_v2.openshift-private[0].id
   create_router    = var.machines_subnet_id != "" ? 0 : 1
 }
@@ -38,6 +40,26 @@ resource "openstack_networking_subnet_v2" "nodes" {
   }
 }
 
+resource "openstack_networking_subnet_v2" "nodes_v6" {
+  count           = var.use_ipv6 && var.machines_subnet_id == "" ? 1 : 0
+  name            = "${var.cluster_id}-nodes"
+  cidr            = local.nodes_cidr_block_v6
+  ip_version      = 6
+  network_id      = local.nodes_network_id
+  tags            = ["openshiftClusterID=${var.cluster_id}"]
+  dns_nameservers = var.external_dns
+
+  # We reserve some space at the beginning of the CIDR to use for the VIPs
+  # It would be good to make this more dynamic by calculating the number of
+  # addresses in the provided CIDR. This currently assumes at least a /18.
+  # FIXME(mandre) if we let the ports pick up VIPs automatically, we don't have
+  # to do any of this.
+  allocation_pool {
+    start = cidrhost(local.nodes_cidr_block_v6, 10)
+    end   = cidrhost(local.nodes_cidr_block_v6, 16000)
+  }
+}
+
 resource "openstack_networking_port_v2" "masters" {
   name  = "${var.cluster_id}-master-port-${count.index}"
   count = var.masters_count
@@ -53,7 +75,7 @@ resource "openstack_networking_port_v2" "masters" {
   }
 
   fixed_ip {
-    subnet_id = local.nodes_subnet_id
+    subnet_id = var.use_ipv6 ? local.nodes_subnet_id_v6 : local.nodes_subnet_id
   }
 
   allowed_address_pairs {
@@ -76,7 +98,7 @@ resource "openstack_networking_port_v2" "api_port" {
   tags               = ["openshiftClusterID=${var.cluster_id}"]
 
   fixed_ip {
-    subnet_id  = local.nodes_subnet_id
+    subnet_id  = var.use_ipv6 ? local.nodes_subnet_id_v6 : local.nodes_subnet_id
     ip_address = var.api_int_ip
   }
 }
@@ -90,7 +112,7 @@ resource "openstack_networking_port_v2" "ingress_port" {
   tags               = ["openshiftClusterID=${var.cluster_id}"]
 
   fixed_ip {
-    subnet_id  = local.nodes_subnet_id
+    subnet_id  = var.use_ipv6 ? local.nodes_subnet_id_v6 : local.nodes_subnet_id
     ip_address = var.ingress_ip
   }
 }
@@ -139,4 +161,10 @@ resource "openstack_networking_router_interface_v2" "nodes_router_interface" {
   count     = local.create_router
   router_id = openstack_networking_router_v2.openshift-external-router[0].id
   subnet_id = local.nodes_subnet_id
+}
+
+resource "openstack_networking_router_interface_v2" "nodes_router_interface_v6" {
+  count     = var.use_ipv6 && local.create_router
+  router_id = openstack_networking_router_v2.openshift-external-router[0].id
+  subnet_id = local.nodes_subnet_id_v6
 }
